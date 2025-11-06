@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yearbook Editor</title>
+
+    <style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f0f0f0;
+    }    
+
+    #ybd {                /*YearBookData*/
+        /* width と height は JS で動的に設定 */
+        background: #ffffff;
+        background-image:
+            linear-gradient(#f1c79d 1px, transparent 0),
+            linear-gradient(90deg, #ed9a46 1px, transparent 0);
+        background-size: 24px 24px;
+
+        font-size: 24px;        /*文字サイズ*/
+        font-family: serif;    /*明朝体指定*/
+        writing-mode: vertical-rl; /*vertical right to left*/
+        text-orientation: upright; /*半角英数字も縦書きに*/ 
+        line-height: 1em;
+        overflow: hidden; /* スクロールを禁止 (指定マス以上は入力不可) */
+        border: 1px solid #ed9a46; /* 外枠 (計算しやすくするため) */
+    }
+
+    #menu {
+        margin: 4px 10px;
+        text-align: center;
+        font-family: serif; 
+    }
+    .btn {
+        margin: 5px;
+        padding: 2px 3px;
+        text-decoration :none;
+        text-align: center;
+        transition: .4s;
+        box-shadow: 5px 5px 5px rgba(0,0,0,0.3);    /*--水平方向 垂直方向 影のぼかし 色--*/ 
+    }
+    .btn:hover {
+        box-shadow: 0 0 10px rgba(0,0,0,0);
+    }
+    p {
+        font-family: serif;
+        font-size: 27px;
+        writing-mode: vertical-rl; 
+        height: 250px; /* タイトルの高さを確保 */
+    }
+    .grid-setting {
+        writing-mode: vertical-rl;
+        margin: 10px 0;
+        padding: 2px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        height: 150px; /* 設定エリアの高さを確保 */
+    }
+    .grid-setting label {
+        font-size: 16px;
+        margin-right: 5px;
+    }
+    .grid-setting input[type="number"] {
+        width: 40px; /* 入力欄の幅 */
+        font-size: 16px;
+        text-align: center;
+        /* 縦書き内のテキスト向き */
+        writing-mode: horizontal-tb; 
+        text-orientation: mixed;
+    }
+    .grid-setting .btn {
+        writing-mode: horizontal-tb; /* ボタンは横書き */
+        margin-top: 10px;
+    }
+    </style>
+</head>
+
+
+<body>
+    <div id="ybd" contenteditable="true" spellcheck="false" autofocus></div>
+    <div id="menu">
+        <p>🌸卒業文集エディタ</p><br>
+
+        <div class="grid-setting">
+
+            <label for="inputRows">行</label>
+            <input type="number" id="inputRows" value="22" min="1">
+            <label for="inputCols">列</label>
+            <input type="number" id="inputCols" value="27" min="1">            <input type="button" value="作成" class="btn" id="btnCreateGrid"></input>
+        </div>
+        
+        <input type="button" value="保存" class="btn" onclick=save();></input><br>
+        <input type="button" value="読込" class="btn" onclick=load();></input><br>
+    </div>
+    
+    <script>
+        const charSize = 24; // 1マスのサイズ(px)
+        let maxChars = 0; // 最大文字数
+
+        const editor = document.getElementById("ybd");
+        const btnCreate = document.getElementById("btnCreateGrid");
+        const inputRows = document.getElementById("inputRows");
+        const inputCols = document.getElementById("inputCols");
+
+        //グリッドを作成（または更新）する関数
+        function createGrid() {
+            let rows = parseInt(inputRows.value) || 22;
+            let cols = parseInt(inputCols.value) || 27;
+
+            // 最大文字数を更新
+            maxChars = rows * cols;
+
+            // エディタのサイズを計算して設定
+            // 元コードのコメントに基づき、罫線1本分(+1px)ではなく、borderで1px確保
+            editor.style.height = (rows * charSize + 2) + 'px';
+            editor.style.width = (cols * charSize + 1) + 'px';
+
+            // 現在のテキストが新しい上限を超えていたらカットする
+            truncateText();
+        }
+
+        //現在のテキストを maxChars に収める関数
+        function truncateText() {
+            let currentText = editor.textContent || "";
+            if (currentText.length > maxChars) {
+                // textContentで設定し直す（書式は消えるが文字数制限は守られる）
+                editor.textContent = currentText.substring(0, maxChars);
+                // カーソルを末尾に移動
+                moveCaretToEnd();
+            }
+        }
+
+        //キー入力を制限する関数
+        function limitInput(event) {
+            const currentLength = editor.textContent.length;
+
+            // 許可するキー（文字入力以外）
+            const allowedKeys = [
+                'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                'Home', 'End', 'PageUp', 'PageDown', 'Tab'
+            ];
+
+            // Ctrl/Meta(Cmd)キーが押されている場合 (コピー、ペースト、全選択など) は許可
+            if (event.ctrlKey || event.metaKey) {
+                return;
+            }
+
+            // 最大文字数に達していて、許可キー以外が押されたら入力を防ぐ
+            if (currentLength >= maxChars && !allowedKeys.includes(event.key)) {
+                event.preventDefault();
+            }
+        }
+
+        //ペースト（貼り付け）を制限する関数
+        function limitPaste(event) {
+            // デフォルトのペースト動作をキャンセル
+            event.preventDefault();
+
+            // クリップボードからテキストデータを取得
+            const pasteText = (event.clipboardData || window.clipboardData).getData('text');
+            const currentLength = editor.textContent.length;
+            const remainingSpace = maxChars - currentLength;
+
+            // 貼り付けられるスペースがない場合は何もしない
+            if (remainingSpace <= 0) {
+                return;
+            }
+
+            // 残りのスペースに収まるようにペースト内容をカット
+            const textToInsert = pasteText.substring(0, remainingSpace);
+
+            // カットしたテキストを挿入 (カーソル位置に挿入される)
+            document.execCommand('insertText', false, textToInsert);
+        }
+
+        //テキスト編集後にカーソルを末尾に移動するヘルパー関数
+        function moveCaretToEnd() {
+            const range = document.createRange();
+            const sel = window.getSelection();
+            if (editor.childNodes.length > 0) {
+                range.setStart(editor.lastChild, editor.lastChild.textContent.length);
+            } else {
+                range.setStart(editor, 0);
+            }
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            editor.focus();
+        }
+
+
+        function load() {
+            let yearbookData = "";
+            if (!localStorage.getItem('yearbookData')) {
+                yearbookData = "文集データは登録されていません。";
+                document.getElementById("ybd").innerHTML = yearbookData;
+            } else {
+                yearbookData = localStorage.getItem('yearbookData');
+                
+                // 読み込んだデータが現在のマス目を超えるかチェック
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = yearbookData;
+                let text = tempDiv.textContent || "";
+
+                if (text.length > maxChars) {
+                    alert('読み込んだデータが現在のマス目(' + maxChars + '字)を超えています。超過分はカットされます。');
+                    // textContentで設定（書式は失われる）
+                    document.getElementById("ybd").textContent = text.substring(0, maxChars);
+                } else {
+                    // 制限内ならそのまま読み込む
+                    document.getElementById("ybd").innerHTML = yearbookData;
+                }
+            }
+        }
+
+        function save() {
+            // 念のため、保存前に上限チェック（通常は入力制限で超えないはず）
+            truncateText(); 
+            let yearbookData = document.getElementById("ybd").innerHTML;
+            localStorage.setItem('yearbookData', yearbookData);
+            alert("保存しました。");
+        }
+
+        // --- イベントリスナーの登録 ---
+
+        // ページ読み込み時にデフォルトのグリッドを作成
+        window.addEventListener('load', createGrid);
+        
+        // 「作成」ボタンにクリックイベントを登録
+        btnCreate.addEventListener('click', createGrid);
+
+        // エディタに入力制限のイベントを登録
+        editor.addEventListener('keydown', limitInput);
+        editor.addEventListener('paste', limitPaste);
+
+    </script>
+
+</body>
+</html>

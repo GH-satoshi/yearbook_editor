@@ -83,6 +83,25 @@
         writing-mode: horizontal-tb; /* ボタンは横書き */
         margin-top: 10px;
     }
+    
+    #toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 18px;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
+    z-index: 1000;
+    }
+    #toast.show {
+    opacity: 1;
+    }
+
     </style>
 </head>
 
@@ -225,12 +244,24 @@
         }
 
         function save() {
-            // 念のため、保存前に上限チェック（通常は入力制限で超えないはず）
             truncateText(); 
             let yearbookData = document.getElementById("ybd").innerHTML;
             localStorage.setItem('yearbookData', yearbookData);
-            alert("保存しました。");
+            showToast("保存しました");
         }
+
+        // トーストを表示する関数
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            toast.textContent = message;
+            toast.classList.add("show");
+
+            // 2秒後にフェードアウト
+            setTimeout(() => {
+                toast.classList.remove("show");
+            }, 2000);
+        }
+
 
         // --- イベントリスナーの登録 ---
 
@@ -246,5 +277,6 @@
 
     </script>
 
+    <div id="toast">保存しました</div>
 </body>
 </html>

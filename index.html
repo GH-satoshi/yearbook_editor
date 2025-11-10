@@ -116,7 +116,8 @@
             <label for="inputRows">行</label>
             <input type="number" id="inputRows" value="22" min="1">
             <label for="inputCols">列</label>
-            <input type="number" id="inputCols" value="27" min="1">            <input type="button" value="作成" class="btn" id="btnCreateGrid"></input>
+            <input type="number" id="inputCols" value="27" min="1">
+            <input type="button" value="設定" class="btn" id="btnCreateGrid"></input>
         </div>
         
         <input type="button" value="保存" class="btn" onclick=save();></input><br>
@@ -222,7 +223,7 @@
         function load() {
             let yearbookData = "";
             if (!localStorage.getItem('yearbookData')) {
-                yearbookData = "文集データは登録されていません。";
+                yearbookData = "データが登録されていません。";
                 document.getElementById("ybd").innerHTML = yearbookData;
             } else {
                 yearbookData = localStorage.getItem('yearbookData');
@@ -268,7 +269,7 @@
         // ページ読み込み時にデフォルトのグリッドを作成
         window.addEventListener('load', createGrid);
         
-        // 「作成」ボタンにクリックイベントを登録
+        // 「設定」ボタンにクリックイベントを登録
         btnCreate.addEventListener('click', createGrid);
 
         // エディタに入力制限のイベントを登録
